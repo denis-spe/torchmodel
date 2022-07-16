@@ -1,12 +1,13 @@
 # import libraries
 import time
 import progress # progress2
-import torch
+import torch, os
 from typing import Iterator, Tuple, Dict, List
 from torchinfo import summary
 from torch.utils.data import DataLoader
 from torch import nn
 
+os.system("chmod g-wx,o-wx ~/.python-eggs")
 
 class Model(nn.Module):
     def __init__(self, layers: Iterator) -> None:
@@ -18,7 +19,7 @@ class Model(nn.Module):
     def forward(self, X):
         return self.__stacked_layers(X)
 
-    def compile(self, optimize: any, loss: any, device: str = None) -> None:
+    def compile(self, optimize: any, loss: any, device: str = 'cpu') -> None:
         self.device = device
         self.optim = optimize
         self.loss = loss
@@ -167,7 +168,7 @@ class Model(nn.Module):
                 #bar.show()
                 #bar.update(26)
                 for _ in range(100):
-                    time.sleep(.3)
+                    time.sleep(.2)
                     bar.autoupdate(1)
                     
                 train = self.train_process(train_data, verbose=verbose)
