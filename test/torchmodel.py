@@ -1,12 +1,19 @@
 # import libraries
 import time
+import random
 import progress # progress2
-import torch
+import torch, os
 from typing import Iterator, Tuple, Dict, List
 from torchinfo import summary
 from torch.utils.data import DataLoader
 from torch import nn
+from progress.bar import IncrementalBar
+from progress.colors import bold
 
+def sleep():
+    t = 0.01
+    t += t * random.uniform(-0.1, 0.1)  # Add some variance
+    time.sleep(t)
 
 class Model(nn.Module):
     def __init__(self, layers: Iterator) -> None:
@@ -18,7 +25,7 @@ class Model(nn.Module):
     def forward(self, X):
         return self.__stacked_layers(X)
 
-    def compile(self, optimize: any, loss: any, device: str = None) -> None:
+    def compile(self, optimize: any, loss: any, device: str = 'cpu') -> None:
         self.device = device
         self.optim = optimize
         self.loss = loss
@@ -162,13 +169,10 @@ class Model(nn.Module):
         # loop through the epoch
         for epoch in range(epochs):
             if verbose:
-                print(f"\nEpoch {epoch + 1}/{epochs} ")
-                bar = progress.ProgressBar("[{progress}] {percentage:.2f}% ({minutes}:{seconds},)", width=30)
-                #bar.show()
-                #bar.update(26)
-                for _ in range(100):
-                    time.sleep(.3)
-                    bar.autoupdate(1)
+                print(f"\033[1m\nEpoch {epoch + 1}/{epochs}\033[0m")
+                bar = IncrementalBar(bold(""), color='white')
+                for i in bar.iter(range(100)):
+                    sleep()
                     
                 train = self.train_process(train_data, verbose=verbose)
 
@@ -177,9 +181,9 @@ class Model(nn.Module):
             train_acc = round(train[1], 5)
             if verbose:
                 if self._is_continuous:
-                    print(f" {type(self.loss).__name__}::- loss: {train_loss}", end="")
+                    print(f" {type(self.loss).__name__}:- loss: {train_loss} -:- {train[2] / 60}", end="")
                 else:
-                    print(f" {type(self.loss).__name__}::- loss: {train_loss} - acc: {train_acc} ", end="")
+                    print(f" {type(self.loss).__name__}:- loss: {train_loss} - acc: {train_acc} ", end="")
 
             # Storing the model score
             acc_list.append(train_acc)
@@ -196,7 +200,7 @@ class Model(nn.Module):
                         print(f"- val_loss: {valid_loss} ",
                           end="")
                     else:
-                        print(f"- val_loss: {valid_loss} - val_acc: {val_acc}")
+                        print(f"- val_loss: {valid_loss} - val_acc: {valid_acc}")
 
                 # Store the score
                 valid_loss_list.append(valid_loss)
@@ -217,11 +221,11 @@ class Model(nn.Module):
             metrics["val_acc"] = valid_acc_list
             metrics["val_loss"] = valid_loss_list
 
-        if not verbose:
-            print(f"\nEpoch {epoch + 1}/{epochs} ")
-            print(f"{type(self.loss).__name__} loss: {metrics['loss'][-1]} - acc: {metrics['acc'][-1]} ", end="")
-            print(f"val_loss: {metrics['val_loss'][-1]} - val_acc: \
-{metrics['val_acc'][-1]} ", end="")
+#         if not verbose:
+#             print(f"\nEpoch {epoch + 1}/{epochs} ")
+#             print(f"{type(self.loss).__name__} loss: {metrics['loss'][-1]} - acc: {metrics['acc'][-1]} ", end="")
+#             print(f"val_loss: {metrics['val_loss'][-1]} - val_acc: \
+# {metrics['val_acc'][-1]} ", end="")
 
         return metrics
 
