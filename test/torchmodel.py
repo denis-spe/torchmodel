@@ -2,8 +2,8 @@
 import time
 import random
 import progress # progress2
-import torch, os
-from typing import Iterator, Tuple, Dict, List
+import torch, os, metrics
+from typing import Iterator, Tuple, Dict, List, Callable
 from torchinfo import summary
 from torch.utils.data import DataLoader
 from torch import nn
@@ -25,11 +25,12 @@ class Model(nn.Module):
     def forward(self, X):
         return self.__stacked_layers(X)
 
-    def compile(self, optimize: any, loss: any, device: str = 'cpu') -> None:
+    def compile(self, optimize: any, loss: any, metrics, device: str = 'cpu') -> None:
         self.device = device
         self.optim = optimize
         self.loss = loss
         self.model = Model(self.__layers).to(self.device)
+        self.metrics = metrics
 
     def summaries(self, input_size=None):
         if input_size:
@@ -37,7 +38,7 @@ class Model(nn.Module):
         else:
             return summary(self)
 
-    def train_process(self, data_loader, verbose: bool = False) -> Tuple[float, float, float, int]:
+    def train_process(self, data_loader, metric: Callable, verbose: bool = False) -> Tuple[float, float, float, int]:
         """
         Train model on train_data
         """
@@ -48,8 +49,8 @@ class Model(nn.Module):
         size = len(data_loader.dataset)
 
         # Initialize the metric variable
-        total_acc, total_loss, count_label, current = 0, 0, 0, 0
-
+        total_score, total_loss, count_label, current = 0, 0, 0, 0
+        
         start = time.time()
         # iterate over the data_loader
         for batch, (X, y) in enumerate(data_loader):
@@ -83,10 +84,11 @@ class Model(nn.Module):
             # sum each loss to total_loss variable
             total_loss += criterion.item()
 
-            _, predict = torch.max(yhat, 1)
+            #_, predict = torch.max(yhat, 1)
 
             # Add every accuracy on total_acc
-            total_acc += (predict == y).sum().item()
+            #total_score += (predict == y).sum().item()
+            total_score += metric(yhat, y)
 
             if batch % 100 == 0:
                 current += (batch / size)
@@ -95,7 +97,7 @@ class Model(nn.Module):
         time_taken = round(stop - start, 3)
 
         return (total_loss / count_label,
-                total_acc / count_label, time_taken,
+                total_score / count_label, time_taken,
                 int(round(current * 100))
                 )
 
@@ -154,17 +156,10 @@ class Model(nn.Module):
         """
         # Initializing variable for storing metric score
         metrics = {}
-        acc_list = []
+        score_list = []
         loss_list = []
         valid_acc_list = []
         valid_loss_list = []
-        
-        unique_label = set([
-           y for _, y in train_data
-        ])
-        
-        # Check if numbers of label are great than 20
-        self._is_continuous = len(unique_label)
 
         # loop through the epoch
         for epoch in range(epochs):
@@ -173,20 +168,19 @@ class Model(nn.Module):
                 bar = IncrementalBar(bold(""), color='white')
                 for i in bar.iter(range(100)):
                     sleep()
-                    
-                train = self.train_process(train_data, verbose=verbose)
+            
+            # Train the data                
+            train = self.train_process(train_data, verbose=verbose, metric=self.metrics)
 
             # Instantiate train loss and accuracy
             train_loss = round(train[0], 6)
-            train_acc = round(train[1], 5)
+            train_score = round(train[1].item(), 5)
+            
             if verbose:
-                if self._is_continuous:
-                    print(f" {type(self.loss).__name__}:- loss: {train_loss} -:- {train[2] / 60}", end="")
-                else:
-                    print(f" {type(self.loss).__name__}:- loss: {train_loss} - acc: {train_acc} ", end="")
+                print(f" loss: {train_loss} - {self.metrics.name}: {train_score} -:- {round(train[2], 2)}ms", end="")
 
             # Storing the model score
-            acc_list.append(train_acc)
+            score_list.append(train_score)
             loss_list.append(train_loss)
 
             if validation_data:
@@ -214,7 +208,7 @@ class Model(nn.Module):
                 for callback in callbacks:
                     callback(self, metrics)
 
-        metrics["acc"] = acc_list
+        metrics["acc"] = score_list
         metrics["loss"] = loss_list
 
         if validation_data:

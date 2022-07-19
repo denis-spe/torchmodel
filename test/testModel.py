@@ -1,8 +1,8 @@
 # Import libraries
-import unittest
 import torch
 from torch import nn
 from torchmodel import Model
+from metrics import MAE
 from torchvision.datasets import mnist
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader, Dataset
@@ -12,9 +12,48 @@ torch.manual_seed(42)
 
 # Initialize train and validation data
 train = mnist.MNIST(root='testDataset', train=True, download=True, transform=ToTensor())
+
 valid = mnist.MNIST(root='testDataset', train=False, download=True, transform=ToTensor())
 
+# Couple the dataset into batch
+train_dataloader = DataLoader(train, batch_size=64, shuffle=True)
 
+valid_dataloader = DataLoader(train, batch_size=64, shuffle=False)
+
+# Instantiate the Model object
+model = Model([
+    # Transpose Input data
+    nn.Flatten(),
+    
+    # Input layer
+    nn.Linear(in_features=28 * 28, out_features=256),
+    nn.ReLU(),  # Activation function
+    nn.Dropout(.4),
+
+    # First hidden layer
+    nn.Linear(in_features=256, out_features=256),
+    nn.ReLU(),  # Activation function
+    nn.Dropout(.4),  # Drop same pixel
+
+    # Output layer
+    nn.Linear(in_features=256, out_features=10)
+])
+
+# Compile the model
+#model.compile(
+#    optimize=torch.optim.Adam(model.parameters()),
+#    loss=nn.CrossEntropyLoss(),
+#    )
+
+# Fit the mnist data  
+#model.fit(train_dataloader)
+
+
+
+
+# Test 2 #####################
+
+# Create dataset
 class CreateDatast(Dataset):
     def __init__(self, nrow, ncol, transforms = None, train: bool = True) -> None:
         super(CreateDatast, self).__init__()
@@ -68,6 +107,7 @@ model = Model([
 model.compile(
     optimize=torch.optim.Adam(model.parameters()),
     loss=nn.MSELoss(),
+    metrics=MAE()
     )
 
 # Construct a dataset
@@ -77,14 +117,10 @@ train_load = DataLoader(dataset=data, shuffle=True)
 data = CreateDatast(100, 8, train=False)
 test_load = DataLoader(dataset=data, shuffle=False)
 
-model.fit(train_load, epochs=2)
-#print(model.predict(test_load))
 
 
-#class MyTestCase(unittest.TestCase):
-    #def test_something(self):
-        #self.assertEqual(True, False)  # add assertion here
 
+# Fit the data
+model.fit(train_load, epochs=10, verbose=True)
+# print(model.predict(test_load))
 
-#if __name__ == '__main__':
-    #unittest.main()
