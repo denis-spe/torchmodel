@@ -177,7 +177,7 @@ class Model(nn.Module):
             train_score = round(train[1].item(), 5)
             
             if verbose:
-                print(f" loss: {train_loss} - {self.metrics.name}: {train_score} -:- {round(train[2], 2)}ms", end="")
+                print(f" loss: {train_loss} - {self.metrics.name}: {train_score} ETA: {round(train[2] * 100, 2)}ms", end="")
 
             # Storing the model score
             score_list.append(train_score)

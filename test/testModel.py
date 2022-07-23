@@ -107,7 +107,8 @@ model = Model([
 model.compile(
     optimize=torch.optim.Adam(model.parameters()),
     loss=nn.MSELoss(),
-    metrics=MAE()
+    metrics=MAE(),
+    device=None
     )
 
 # Construct a dataset
